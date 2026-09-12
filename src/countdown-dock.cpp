@@ -20,7 +20,11 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include "repeat-button.hpp"
 
 #include <obs-module.h>
+#include <plugin-support.h>
 
+#include <QFont>
+#include <QFontDatabase>
+#include <QFrame>
 #include <QGraphicsDropShadowEffect>
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -46,16 +50,20 @@ QLabel#columnLabel {
 	font-size: 12px;
 	font-weight: 600;
 }
-QLabel#displayLcd {
+QFrame#lcdPanel {
 	background-color: #0d1117;
 	border: 2px solid #252930;
 	border-radius: 8px;
+}
+QLabel#displayLcd {
+	background: transparent;
+	border: none;
 	color: #00e5ff;
-	font-family: "Courier New", monospace;
-	font-size: 48px;
-	font-weight: 900;
-	letter-spacing: 0px;
-	padding: 6px 6px;
+}
+QLabel#displayGhost {
+	background: transparent;
+	border: none;
+	color: #082b36;
 }
 QPushButton {
 	background-color: #343841;
@@ -74,9 +82,26 @@ QPushButton#stepButton {
 	font-size: 18px;
 	font-weight: bold;
 	color: #ffffff;
+	/* Override the OBS theme's global QPushButton padding/margin/height so the
+	 * buttons stay compact and honour our setMinimumSize instead. */
+	/*padding: 2px;
+	margin: 0px;
+	min-height: 0px;
+	max-height: 16777215px;*/
 }
 QPushButton#actionButton {
 	font-size: 12px;
+	padding: 0px 0px;
+	margin: 0px;
+	/*min-height: 0px;
+	max-height: 16777215px;*/
+}
+QPushButton#actionButtonSettings {
+	font-size: 16px;
+	padding: 0px 0px;
+	margin: 0px;
+	/*min-height: 0px;
+	max-height: 16777215px;*/
 }
 )qss";
 
@@ -94,16 +119,54 @@ QPushButton *makeStepButton(const QString &glyph, int minHeight, QWidget *parent
 CountdownDock::CountdownDock(QWidget *parent) : QWidget(parent)
 {
 	setObjectName("countdownAduDockWidget");
+	digitalFontFamily = loadDigitalFont();
 	setStyleSheet(kDockStyle);
 	buildUi();
 	updateDisplay();
 }
 
+QString CountdownDock::loadDigitalFont()
+{
+	/* The font ships in the plugin's data dir (data/fonts). Resolve its path
+	 * through OBS (or the harness stub) and register it with Qt. */
+	QString family;
+
+	const char *names[] = {"fonts/DSEG14Classic-Bold.ttf", "fonts/DSEG14Classic-Regular.ttf"};
+	for (const char *name : names) {
+		char *path = obs_module_file(name);
+		if (!path) {
+			obs_log(LOG_WARNING, "digital font: obs_module_file returned null for '%s'", name);
+			continue;
+		}
+
+		obs_log(LOG_INFO, "digital font: resolved '%s' -> '%s'", name, path);
+
+		int id = QFontDatabase::addApplicationFont(QString::fromUtf8(path));
+		bfree(path);
+
+		if (id < 0) {
+			obs_log(LOG_WARNING, "digital font: addApplicationFont failed for '%s'", name);
+			continue;
+		}
+
+		const QStringList families = QFontDatabase::applicationFontFamilies(id);
+		obs_log(LOG_INFO, "digital font: registered id=%d families=[%s]", id,
+			families.join(", ").toUtf8().constData());
+		if (!families.isEmpty() && family.isEmpty()) {
+			family = families.first();
+		}
+	}
+
+	obs_log(LOG_INFO, "digital font: using family '%s'", family.toUtf8().constData());
+
+	return family;
+}
+
 void CountdownDock::buildUi()
 {
 	auto *root = new QVBoxLayout(this);
-	root->setContentsMargins(12, 12, 12, 12);
-	root->setSpacing(8);
+	root->setContentsMargins(8, 6, 8, 6);
+	root->setSpacing(6);
 
 	/* Title */
 	//auto *title = new QLabel(obs_module_text("CountdownAdu.Main.Title"), this);
@@ -137,11 +200,47 @@ void CountdownDock::buildUi()
 	title->setObjectName("titleLabel");
 	title->setAlignment(Qt::AlignCenter);
 
-	display = new QLabel("20:00", this);
+	/*
+	 * LCD panel: a dark frame containing two stacked labels in the same grid
+	 * cell - a dim "ghost" showing all segments lit, and the active digits on
+	 * top with a cyan glow. Both use the embedded 14-segment font when found.
+	 */
+	auto *lcdPanel = new QFrame(this);
+	lcdPanel->setObjectName("lcdPanel");
+	lcdPanel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+	auto *lcdGrid = new QGridLayout(lcdPanel);
+	lcdGrid->setContentsMargins(lcdMargin, lcdMargin, lcdMargin, lcdMargin);
+
+	const QString digitFamily = digitalFontFamily.isEmpty() ? "Courier New" : digitalFontFamily;
+
+	QFont digitFont(digitFamily);
+	digitFont.setPixelSize(lcdFontSize);
+
+	/*
+	 * Also pin the font via a per-widget stylesheet. The OBS theme applies a
+	 * global QLabel stylesheet, and Qt stylesheets take precedence over
+	 * setFont(); without this, the digits fall back to the theme font inside
+	 * OBS (while still looking correct in the standalone harness).
+	 */
+	const QString digitCss = QString("font-family: \"%1\"; font-size: %2px;").arg(digitFamily).arg(lcdFontSize);
+
+	/* Ghost layer: all segments lit ('~' = all-on in DSEG14), dimmed. */
+	auto *ghost = new QLabel(digitalFontFamily.isEmpty() ? "88:88" : "~~:~~", lcdPanel);
+	ghost->setObjectName("displayGhost");
+	ghost->setAlignment(Qt::AlignCenter);
+	ghost->setFont(digitFont);
+	ghost->setStyleSheet(QString("QLabel#displayGhost { background: transparent; border: none; "
+				     "color: #082b36; %1 }")
+				     .arg(digitCss));
+
+	display = new QLabel("20:00", lcdPanel);
 	display->setObjectName("displayLcd");
 	display->setAlignment(Qt::AlignCenter);
-	display->setMinimumHeight(60);
-	display->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+	display->setFont(digitFont);
+	display->setStyleSheet(
+		QString("QLabel#displayLcd { background: transparent; border: none; color: #00e5ff; %1 }")
+			.arg(digitCss));
 
 	auto *glow = new QGraphicsDropShadowEffect(display);
 	glow->setBlurRadius(18);
@@ -149,8 +248,11 @@ void CountdownDock::buildUi()
 	glow->setOffset(0, 0);
 	display->setGraphicsEffect(glow);
 
+	lcdGrid->addWidget(ghost, 0, 0);
+	lcdGrid->addWidget(display, 0, 0);
+
 	centerCol->addWidget(title);
-	centerCol->addWidget(display);
+	centerCol->addWidget(lcdPanel);
 	centerCol->addStretch(1);
 	middle->addLayout(centerCol, 1);
 
@@ -181,7 +283,7 @@ void CountdownDock::buildUi()
 	auto *plus10Btn = new QPushButton(obs_module_text("CountdownAdu.Main.Plus10"), this);
 	plus10Btn->setObjectName("actionButton");
 	auto *settingsBtn = new QPushButton(this);
-	settingsBtn->setObjectName("actionButton");
+	settingsBtn->setObjectName("actionButtonSettings");
 	settingsBtn->setText(QString::fromUtf8("\u2699")); /* gear glyph fallback */
 
 	for (QPushButton *b : {nowBtn, plus5Btn, plus10Btn, settingsBtn}) {

@@ -22,7 +22,8 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
 set(PLUGIN_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
 set(PLUGIN_SRC "${PLUGIN_ROOT}/src")
-set(LOCALE_FILE "${PLUGIN_ROOT}/data/locale/en-US.ini")
+set(PLUGIN_DATA "${PLUGIN_ROOT}/data")
+set(LOCALE_FILE "${PLUGIN_DATA}/locale/en-US.ini")
 
 add_executable(
   countdown-harness
@@ -39,11 +40,11 @@ target_include_directories(
   PRIVATE "${PLUGIN_SRC}" "${CMAKE_CURRENT_SOURCE_DIR}/stub-include"
 )
 
-# Provide the absolute path to the locale file so the stub finds it regardless
-# of the current working directory.
+# Provide absolute paths so the stub finds bundled data (locale, fonts)
+# regardless of the current working directory.
 target_compile_definitions(
   countdown-harness
-  PRIVATE COUNTDOWN_LOCALE_FILE="${LOCALE_FILE}"
+  PRIVATE COUNTDOWN_LOCALE_FILE="${LOCALE_FILE}" COUNTDOWN_DATA_DIR="${PLUGIN_DATA}"
 )
 
 target_link_libraries(countdown-harness PRIVATE Qt6::Widgets)

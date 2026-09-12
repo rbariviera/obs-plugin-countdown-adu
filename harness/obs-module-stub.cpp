@@ -34,8 +34,15 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <string>
 #include <unordered_map>
 
+#include <cstdlib>
+#include <cstring>
+
 #ifndef COUNTDOWN_LOCALE_FILE
 #define COUNTDOWN_LOCALE_FILE ""
+#endif
+
+#ifndef COUNTDOWN_DATA_DIR
+#define COUNTDOWN_DATA_DIR ""
 #endif
 
 namespace {
@@ -108,4 +115,38 @@ extern "C" const char *obs_module_text(const char *val)
 	/* Fallback: cache and return the key itself so the pointer stays valid. */
 	auto inserted = t.emplace(val, val);
 	return inserted.first->second.c_str();
+}
+
+extern "C" char *obs_module_file(const char *file)
+{
+	if (!file) {
+		return nullptr;
+	}
+
+	std::string path = std::string(COUNTDOWN_DATA_DIR) + "/" + file;
+
+	/* Mimic OBS: return a heap-allocated copy, freed with bfree(). */
+	char *out = static_cast<char *>(std::malloc(path.size() + 1));
+	if (out) {
+		std::memcpy(out, path.c_str(), path.size() + 1);
+	}
+	return out;
+}
+
+extern "C" void bfree(void *ptr)
+{
+	std::free(ptr);
+}
+
+#include <cstdarg>
+
+/* Minimal obs_log() for the harness: prints to stderr. */
+extern "C" void obs_log(int log_level, const char *format, ...)
+{
+	(void)log_level;
+	std::va_list args;
+	va_start(args, format);
+	std::vfprintf(stderr, format, args);
+	va_end(args);
+	std::fprintf(stderr, "\n");
 }

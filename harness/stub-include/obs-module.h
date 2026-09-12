@@ -25,11 +25,27 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #pragma once
 
+/* Log levels mirror libobs/util/base.h so shared sources can use LOG_*. */
+#ifndef LOG_ERROR
+#define LOG_ERROR 100
+#define LOG_WARNING 200
+#define LOG_INFO 300
+#define LOG_DEBUG 400
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 const char *obs_module_text(const char *lookup_string);
+
+/*
+ * In real OBS, obs_module_file() is a macro returning a heap-allocated absolute
+ * path (freed with bfree). Here we provide plain functions with the same
+ * contract so the shared sources can locate bundled data files (e.g. fonts).
+ */
+char *obs_module_file(const char *file);
+void bfree(void *ptr);
 
 #ifdef __cplusplus
 }

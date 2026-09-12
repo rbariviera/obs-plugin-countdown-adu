@@ -39,8 +39,14 @@ int main(int argc, char *argv[])
 	auto *dock = new CountdownDock();
 	dock->setWindowTitle("Countdown Dock Preview");
 
-	/* Roughly the size of the reference layout (layout_main_window.svg). */
-	dock->resize(540, 330);
+	if (std::getenv("COUNTDOWN_HARNESS_MIN")) {
+		/* Shrink to the minimum size, matching how small the dock can get
+		 * inside OBS. Useful to preview the minimum footprint. */
+		dock->resize(dock->minimumSizeHint());
+	} else {
+		/* Roughly the size of the reference layout (layout_main_window.svg). */
+		dock->resize(540, 330);
+	}
 	dock->show();
 
 	/*

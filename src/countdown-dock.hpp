@@ -18,6 +18,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #pragma once
 
+#include <QString>
 #include <QWidget>
 
 class QLabel;
@@ -37,12 +38,22 @@ private slots:
 private:
 	void buildUi();
 	void updateDisplay();
+	QString loadDigitalFont();
 
 	QLabel *display = nullptr;
+
+	/* Family name of the embedded 7/14-segment font, empty if unavailable. */
+	QString digitalFontFamily;
 
 	/* Target start time, 24h. */
 	int hour = 20;
 	int minute = 0;
 
 	int buttonHeight = 28;
+
+	/* Font size (in pixels) of the LCD panel digits. */
+	int lcdFontSize = 38;
+
+	/* Inner padding (px) around the LCD digits. Smaller = shorter panel. */
+	int lcdMargin = 12;
 };
