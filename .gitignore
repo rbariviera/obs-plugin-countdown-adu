@@ -1,0 +1,9 @@
+# UI preview harness build artifacts
+harness/build/
+
+# Common build/output directories
+build/
+build_*/
+
+# macOS
+.DS_Store

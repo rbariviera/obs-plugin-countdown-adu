@@ -1,5 +1,5 @@
 /*
-obs-plugin-countdown-adu
+obs-plugin-countdown-adu - UI preview harness
 Copyright (C) 2026
 
 This program is free software; you can redistribute it and/or modify
@@ -16,33 +16,21 @@ You should have received a copy of the GNU General Public License along
 with this program. If not, see <https://www.gnu.org/licenses/>
 */
 
+/*
+ * Minimal stand-in for OBS's <obs-module.h>, used ONLY by the standalone
+ * harness so the shared widget sources can compile without libobs. It declares
+ * just enough of the OBS module API that CountdownDock references. The actual
+ * obs_module_text() is implemented in obs-module-stub.cpp.
+ */
+
 #pragma once
 
-#include <QWidget>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-class QLabel;
+const char *obs_module_text(const char *lookup_string);
 
-class CountdownDock : public QWidget {
-	Q_OBJECT
-
-public:
-	explicit CountdownDock(QWidget *parent = nullptr);
-
-private slots:
-	void addHour(int delta);
-	void addMinute(int delta);
-	void setToNow(int plusMinutes = 0);
-	void openSettings();
-
-private:
-	void buildUi();
-	void updateDisplay();
-
-	QLabel *display = nullptr;
-
-	/* Target start time, 24h. */
-	int hour = 20;
-	int minute = 0;
-
-	int buttonHeight = 28;
-};
+#ifdef __cplusplus
+}
+#endif
