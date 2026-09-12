@@ -26,11 +26,13 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QFont>
 #include <QFontDatabase>
 #include <QFrame>
+#include <QIcon>
 #include <QGraphicsDropShadowEffect>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <QSize>
 #include <QTime>
 #include <QVBoxLayout>
 
@@ -315,7 +317,17 @@ void CountdownDock::buildUi()
 	plus10Btn->setObjectName("actionButton");
 	auto *settingsBtn = new QPushButton(this);
 	settingsBtn->setObjectName("actionButtonSettings");
-	settingsBtn->setText(QString::fromUtf8("\u2699")); /* gear glyph fallback */
+	/*
+	 * Use a vector gear icon (perfectly centered and crisp) instead of the
+	 * Unicode gear glyph, whose per-font metrics render it off-center.
+	 */
+	if (char *iconPath = obs_module_file("icons/gear.svg")) {
+		settingsBtn->setIcon(QIcon(QString::fromUtf8(iconPath)));
+		settingsBtn->setIconSize(QSize(16, 16));
+		bfree(iconPath);
+	} else {
+		settingsBtn->setText(QString::fromUtf8("\u2699")); /* fallback glyph */
+	}
 
 	for (QPushButton *b : {nowBtn, plus5Btn, plus10Btn, settingsBtn}) {
 		b->setMinimumHeight(buttonHeight);
