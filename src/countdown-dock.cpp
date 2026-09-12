@@ -42,13 +42,14 @@ QWidget#countdownAduDockWidget {
 }
 QLabel#titleLabel {
 	color: #e1e4e8;
-	font-size: 14px;
+	font-size: 12px;
 	font-weight: 700;
 }
 QLabel#columnLabel {
 	color: #a0a6b2;
-	font-size: 12px;
+	font-size: 10px;
 	font-weight: 600;
+	margin-top: 6px;
 }
 QFrame#lcdPanel {
 	background-color: #0d1117;
@@ -79,29 +80,27 @@ QPushButton:pressed {
 	background-color: #2c3036;
 }
 QPushButton#stepButton {
-	font-size: 18px;
+	font-size: 16px;
 	font-weight: bold;
 	color: #ffffff;
-	/* Override the OBS theme's global QPushButton padding/margin/height so the
-	 * buttons stay compact and honour our setMinimumSize instead. */
-	/*padding: 2px;
+	/* Override the OBS theme's global QPushButton rules. The theme pins a fixed
+	 * max-height, which - combined with shrinking the dock - clips the +/-
+	 * glyph. Set an explicit min-height (so the glyph always fits) and release
+	 * the max-height clamp. */
+	padding: 2px;
 	margin: 0px;
-	min-height: 0px;
-	max-height: 16777215px;*/
+	min-height: 22px;
+	max-height: 16777215px;
 }
 QPushButton#actionButton {
-	font-size: 12px;
+	font-size: 10px;
 	padding: 0px 0px;
 	margin: 0px;
-	/*min-height: 0px;
-	max-height: 16777215px;*/
 }
 QPushButton#actionButtonSettings {
-	font-size: 16px;
+	font-size: 22px;
 	padding: 0px 0px;
 	margin: 0px;
-	/*min-height: 0px;
-	max-height: 16777215px;*/
 }
 )qss";
 
@@ -176,7 +175,7 @@ void CountdownDock::buildUi()
 
 	/* Middle row: [Hora +/-] [display] [Min +/-] */
 	auto *middle = new QHBoxLayout();
-	middle->setSpacing(12);
+	middle->setSpacing(8);
 
 	/* Left column: Hora */
 	auto *hourCol = new QVBoxLayout();
@@ -194,7 +193,7 @@ void CountdownDock::buildUi()
 
 	/* Center: LCD display */
 	auto *centerCol = new QVBoxLayout();
-	centerCol->setSpacing(8);
+	centerCol->setSpacing(6);
 
 	auto *title = new QLabel(obs_module_text("CountdownAdu.Main.Title"), this);
 	title->setObjectName("titleLabel");
@@ -274,7 +273,7 @@ void CountdownDock::buildUi()
 
 	/* Bottom row: Agora / 5 min / 10 min / settings */
 	auto *bottom = new QHBoxLayout();
-	bottom->setSpacing(12);
+	bottom->setSpacing(8);
 
 	auto *nowBtn = new QPushButton(obs_module_text("CountdownAdu.Main.Now"), this);
 	nowBtn->setObjectName("actionButton");

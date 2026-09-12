@@ -49,10 +49,10 @@ private:
 	int hour = 20;
 	int minute = 0;
 
-	int buttonHeight = 28;
+	int buttonHeight = 24;
 
 	/* Font size (in pixels) of the LCD panel digits. */
-	int lcdFontSize = 38;
+	int lcdFontSize = 32;
 
 	/* Inner padding (px) around the LCD digits. Smaller = shorter panel. */
 	int lcdMargin = 12;
