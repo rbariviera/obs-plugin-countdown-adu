@@ -22,6 +22,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <obs-module.h>
 #include <plugin-support.h>
 
+#include <QDate>
 #include <QFont>
 #include <QFontDatabase>
 #include <QFrame>
@@ -121,7 +122,38 @@ CountdownDock::CountdownDock(QWidget *parent) : QWidget(parent)
 	digitalFontFamily = loadDigitalFont();
 	setStyleSheet(kDockStyle);
 	buildUi();
+	applyStartupSchedule();
 	updateDisplay();
+}
+
+void CountdownDock::applyStartupSchedule()
+{
+	/*
+	 * Default start time based on the weekday the dock is created (OBS launch):
+	 *   - Tuesday / Thursday -> 20:00
+	 *   - Saturday           -> 19:30
+	 *   - Sunday             -> 18:30
+	 *   - any other day      -> current time + 10 minutes
+	 * Qt: dayOfWeek() is 1=Monday ... 7=Sunday.
+	 */
+	switch (QDate::currentDate().dayOfWeek()) {
+	case Qt::Tuesday:
+	case Qt::Thursday:
+		hour = 20;
+		minute = 0;
+		break;
+	case Qt::Saturday:
+		hour = 19;
+		minute = 30;
+		break;
+	case Qt::Sunday:
+		hour = 18;
+		minute = 30;
+		break;
+	default:
+		setToNow(10);
+		break;
+	}
 }
 
 QString CountdownDock::loadDigitalFont()

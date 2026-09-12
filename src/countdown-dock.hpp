@@ -40,6 +40,9 @@ private:
 	void updateDisplay();
 	QString loadDigitalFont();
 
+	/* Sets the initial time based on the current weekday (see .cpp). */
+	void applyStartupSchedule();
+
 	QLabel *display = nullptr;
 
 	/* Family name of the embedded 7/14-segment font, empty if unavailable. */
