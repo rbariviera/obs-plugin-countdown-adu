@@ -31,6 +31,7 @@ add_executable(
   obs-module-stub.cpp
   "${PLUGIN_SRC}/countdown-dock.cpp"
   "${PLUGIN_SRC}/repeat-button.cpp"
+  "${PLUGIN_SRC}/settings-dialog.cpp"
 )
 
 # stub-include provides a minimal <obs-module.h> so the shared widget sources

@@ -1,5 +1,6 @@
 # UI preview harness build artifacts
 harness/build/
+harness/harness-config.ini
 
 # Common build/output directories
 build/

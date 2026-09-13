@@ -18,6 +18,8 @@ target_sources(
     src/countdown-dock.hpp
     src/repeat-button.cpp
     src/repeat-button.hpp
+    src/settings-dialog.cpp
+    src/settings-dialog.hpp
     src/plugin-support.h
     ${CMAKE_CURRENT_BINARY_DIR}/plugin-support.c
 )

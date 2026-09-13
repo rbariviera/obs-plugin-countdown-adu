@@ -33,6 +33,12 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #define LOG_DEBUG 400
 #endif
 
+/* Opaque OBS types referenced by the shared sources. */
+typedef struct obs_source obs_source_t;
+typedef struct obs_scene obs_scene_t;
+typedef struct obs_sceneitem obs_sceneitem_t;
+typedef struct obs_data obs_data_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -46,6 +52,22 @@ const char *obs_module_text(const char *lookup_string);
  */
 char *obs_module_file(const char *file);
 void bfree(void *ptr);
+
+/* Source / scene API used by the settings dialog (stubbed with fake data). */
+const char *obs_source_get_name(const obs_source_t *source);
+const char *obs_source_get_unversioned_id(const obs_source_t *source);
+obs_source_t *obs_get_source_by_name(const char *name);
+void obs_source_release(obs_source_t *source);
+obs_scene_t *obs_scene_from_source(const obs_source_t *source);
+obs_source_t *obs_sceneitem_get_source(const obs_sceneitem_t *item);
+void obs_scene_enum_items(obs_scene_t *scene, bool (*callback)(obs_scene_t *, obs_sceneitem_t *, void *),
+			  void *param);
+
+/* obs_data + source update, used to push the countdown text into a source. */
+obs_data_t *obs_data_create(void);
+void obs_data_set_string(obs_data_t *data, const char *name, const char *val);
+void obs_data_release(obs_data_t *data);
+void obs_source_update(obs_source_t *source, obs_data_t *settings);
 
 #ifdef __cplusplus
 }

@@ -18,6 +18,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include "countdown-dock.hpp"
 #include "repeat-button.hpp"
+#include "settings-dialog.hpp"
 
 #include <obs-module.h>
 #include <plugin-support.h>
@@ -34,6 +35,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QPushButton>
 #include <QSize>
 #include <QTime>
+#include <QTimer>
 #include <QVBoxLayout>
 
 namespace {
@@ -126,6 +128,11 @@ CountdownDock::CountdownDock(QWidget *parent) : QWidget(parent)
 	buildUi();
 	applyStartupSchedule();
 	updateDisplay();
+
+	countdownTimer = new QTimer(this);
+	countdownTimer->setInterval(1000);
+	connect(countdownTimer, &QTimer::timeout, this, &CountdownDock::tickCountdown);
+	startCountdown();
 }
 
 void CountdownDock::applyStartupSchedule()
@@ -357,6 +364,7 @@ void CountdownDock::addHour(int delta)
 {
 	hour = (hour + delta + 24) % 24;
 	updateDisplay();
+	startCountdown();
 }
 
 void CountdownDock::addMinute(int delta)
@@ -366,6 +374,7 @@ void CountdownDock::addMinute(int delta)
 	hour = total / 60;
 	minute = total % 60;
 	updateDisplay();
+	startCountdown();
 }
 
 void CountdownDock::setToNow(int plusMinutes)
@@ -375,11 +384,58 @@ void CountdownDock::setToNow(int plusMinutes)
 	hour = target.hour();
 	minute = target.minute();
 	updateDisplay();
+	startCountdown();
 }
 
 void CountdownDock::openSettings()
 {
-	/* Settings window will be implemented later. */
+	CountdownSettingsDialog dialog(this);
+	dialog.exec();
+}
+
+int CountdownDock::remainingSeconds() const
+{
+	/* Difference between the target time (HH:MM:00) and the real clock,
+	 * within the same day. Negative once the target has passed. */
+	QTime target(hour, minute, 0);
+	QTime now = QTime::currentTime();
+	return now.secsTo(target);
+}
+
+void CountdownDock::startCountdown()
+{
+	/* Guard: time may be set during construction before the timer exists
+	 * (applyStartupSchedule). In that case the constructor starts it later. */
+	if (!countdownTimer) {
+		return;
+	}
+
+	/* (Re)evaluate after any time change. Tick immediately so the sources
+	 * update without waiting a second, then keep ticking if still positive. */
+	tickCountdown();
+	if (remainingSeconds() > 0) {
+		countdownTimer->start();
+	}
+}
+
+void CountdownDock::tickCountdown()
+{
+	int remaining = remainingSeconds();
+	if (remaining < 0) {
+		remaining = 0;
+	}
+
+	/* Format as MM:SS where minutes are the TOTAL minutes (may exceed 59):
+	 * e.g. 1h10m00s -> "70:00". */
+	const int totalMinutes = remaining / 60;
+	const int seconds = remaining % 60;
+	const QString text = QString::asprintf("%02d:%02d", totalMinutes, seconds);
+
+	CountdownSettingsDialog::updateConfiguredSources(text);
+
+	if (remaining <= 0) {
+		countdownTimer->stop(); /* reached 00:00 -> stop updating */
+	}
 }
 
 void CountdownDock::updateDisplay()

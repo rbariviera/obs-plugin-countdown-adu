@@ -25,6 +25,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
  */
 
 #include "countdown-dock.hpp"
+#include "settings-dialog.hpp"
 
 #include <QApplication>
 #include <QTimer>
@@ -50,14 +51,25 @@ int main(int argc, char *argv[])
 	dock->show();
 
 	/*
+	 * Optional: open the settings dialog directly for previewing/testing:
+	 *   COUNTDOWN_HARNESS_SETTINGS=1 ./countdown-harness
+	 */
+	CountdownSettingsDialog *settings = nullptr;
+	if (std::getenv("COUNTDOWN_HARNESS_SETTINGS")) {
+		settings = new CountdownSettingsDialog(dock);
+		settings->show();
+	}
+
+	/*
 	 * Optional non-interactive screenshot mode for quick visual checks:
 	 *   COUNTDOWN_HARNESS_SHOT=/tmp/preview.png ./countdown-harness
-	 * Renders the widget to the given PNG and exits.
+	 * Renders the widget (or the settings dialog, if open) to PNG and exits.
 	 */
 	if (const char *shot = std::getenv("COUNTDOWN_HARNESS_SHOT")) {
 		const QString path = QString::fromUtf8(shot);
-		QTimer::singleShot(300, dock, [dock, path]() {
-			dock->grab().save(path);
+		QWidget *target = settings ? static_cast<QWidget *>(settings) : static_cast<QWidget *>(dock);
+		QTimer::singleShot(300, target, [target, path]() {
+			target->grab().save(path);
 			QApplication::quit();
 		});
 	}

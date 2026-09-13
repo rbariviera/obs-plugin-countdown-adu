@@ -22,6 +22,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QWidget>
 
 class QLabel;
+class QTimer;
 
 class CountdownDock : public QWidget {
 	Q_OBJECT
@@ -43,7 +44,15 @@ private:
 	/* Sets the initial time based on the current weekday (see .cpp). */
 	void applyStartupSchedule();
 
+	/* Countdown engine: writes the remaining MM:SS to the configured sources. */
+	void startCountdown();
+	void tickCountdown();
+	int remainingSeconds() const;
+
 	QLabel *display = nullptr;
+
+	/* Ticks every second while the countdown is running. */
+	QTimer *countdownTimer = nullptr;
 
 	/* Family name of the embedded 7/14-segment font, empty if unavailable. */
 	QString digitalFontFamily;

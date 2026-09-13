@@ -150,3 +150,226 @@ extern "C" void obs_log(int log_level, const char *format, ...)
 	va_end(args);
 	std::fprintf(stderr, "\n");
 }
+
+/* ------------------------------------------------------------------------- */
+/* Fake OBS scene/source model + config, so the settings dialog can be tested */
+/* ------------------------------------------------------------------------- */
+
+#include <obs-frontend-api.h>
+#include <util/config-file.h>
+
+#include <map>
+#include <vector>
+
+struct obs_source {
+	std::string name;
+	std::string id; /* e.g. "text_ft2_source", "image_source" */
+};
+
+struct obs_scene {
+	std::vector<obs_source *> items;
+};
+
+namespace {
+
+/* Two sample scenes with a mix of text and non-text sources. */
+struct FakeWorld {
+	std::vector<obs_source *> scenes;
+	std::map<std::string, obs_scene *> sceneByName;
+	std::vector<obs_source *> allSources;
+
+	FakeWorld()
+	{
+		addScene("Cena Principal",
+			 {{"Titulo (Texto)", "text_ft2_source"}, {"Rodape (Texto)", "text_gdiplus"},
+			  {"Webcam", "av_capture_input"}});
+		addScene("Cena Louvor", {{"Letra (Texto)", "text_ft2_source"}, {"Fundo", "image_source"}});
+	}
+
+	void addScene(const std::string &name, std::vector<std::pair<std::string, std::string>> items)
+	{
+		auto *sceneSrc = new obs_source{name, "scene"};
+		scenes.push_back(sceneSrc);
+		allSources.push_back(sceneSrc);
+
+		auto *scene = new obs_scene();
+		for (auto &it : items) {
+			auto *src = new obs_source{it.first, it.second};
+			scene->items.push_back(src);
+			allSources.push_back(src);
+		}
+		sceneByName[name] = scene;
+	}
+};
+
+FakeWorld &world()
+{
+	static FakeWorld w;
+	return w;
+}
+
+} // namespace
+
+extern "C" const char *obs_source_get_name(const obs_source_t *source)
+{
+	return source ? source->name.c_str() : "";
+}
+
+extern "C" const char *obs_source_get_unversioned_id(const obs_source_t *source)
+{
+	return source ? source->id.c_str() : "";
+}
+
+extern "C" obs_source_t *obs_get_source_by_name(const char *name)
+{
+	if (!name) {
+		return nullptr;
+	}
+	/* Search all sources (scenes and their child sources). */
+	for (obs_source *s : world().allSources) {
+		if (s->name == name) {
+			return s;
+		}
+	}
+	return nullptr;
+}
+
+extern "C" void obs_source_release(obs_source_t *) {}
+
+/* Minimal obs_data: just holds the "text" string we set. */
+struct obs_data {
+	std::string text;
+};
+
+extern "C" obs_data_t *obs_data_create()
+{
+	return new obs_data();
+}
+
+extern "C" void obs_data_set_string(obs_data_t *data, const char *name, const char *val)
+{
+	if (data && name && std::strcmp(name, "text") == 0) {
+		data->text = val ? val : "";
+	}
+}
+
+extern "C" void obs_data_release(obs_data_t *data)
+{
+	delete data;
+}
+
+extern "C" void obs_source_update(obs_source_t *source, obs_data_t *settings)
+{
+	/* In the harness there is no real source; just log what would be set. */
+	if (source && settings) {
+		std::fprintf(stderr, "[harness] obs_source_update '%s' -> text='%s'\n", source->name.c_str(),
+			     settings->text.c_str());
+	}
+}
+
+extern "C" obs_scene_t *obs_scene_from_source(const obs_source_t *source)
+{
+	if (!source) {
+		return nullptr;
+	}
+	auto it = world().sceneByName.find(source->name);
+	return it != world().sceneByName.end() ? it->second : nullptr;
+}
+
+extern "C" obs_source_t *obs_sceneitem_get_source(const obs_sceneitem_t *item)
+{
+	/* We pass obs_source* directly as the "item" handle (see enum below). */
+	return reinterpret_cast<obs_source_t *>(const_cast<obs_sceneitem_t *>(item));
+}
+
+extern "C" void obs_scene_enum_items(obs_scene_t *scene,
+				     bool (*callback)(obs_scene_t *, obs_sceneitem_t *, void *), void *param)
+{
+	if (!scene || !callback) {
+		return;
+	}
+	for (obs_source *src : scene->items) {
+		auto *item = reinterpret_cast<obs_sceneitem_t *>(src);
+		if (!callback(scene, item, param)) {
+			break;
+		}
+	}
+}
+
+extern "C" void obs_frontend_get_scenes(struct obs_frontend_source_list *list)
+{
+	if (!list) {
+		return;
+	}
+	auto &scenes = world().scenes;
+	list->sources.num = scenes.size();
+	list->sources.array = scenes.empty() ? nullptr : scenes.data();
+}
+
+extern "C" void obs_frontend_source_list_free(struct obs_frontend_source_list *list)
+{
+	if (list) {
+		list->sources.num = 0;
+		list->sources.array = nullptr;
+	}
+}
+
+/* In-memory config persisted to a small ini file next to the executable. */
+namespace {
+
+std::string configPath()
+{
+	return std::string(COUNTDOWN_DATA_DIR) + "/../harness/harness-config.ini";
+}
+
+std::map<std::string, std::string> &configStore()
+{
+	static std::map<std::string, std::string> store;
+	static bool loaded = false;
+	if (!loaded) {
+		loaded = true;
+		std::ifstream f(configPath());
+		std::string line;
+		while (std::getline(f, line)) {
+			auto eq = line.find('=');
+			if (eq != std::string::npos) {
+				store[line.substr(0, eq)] = line.substr(eq + 1);
+			}
+		}
+	}
+	return store;
+}
+
+std::string configKey(const char *section, const char *name)
+{
+	return std::string(section ? section : "") + "." + (name ? name : "");
+}
+
+} // namespace
+
+extern "C" config_t *obs_frontend_get_user_config()
+{
+	/* Non-null sentinel; the stub ignores the actual pointer. */
+	return reinterpret_cast<config_t *>(1);
+}
+
+extern "C" const char *config_get_string(config_t *, const char *section, const char *name)
+{
+	auto &store = configStore();
+	auto it = store.find(configKey(section, name));
+	return it != store.end() ? it->second.c_str() : "";
+}
+
+extern "C" void config_set_string(config_t *, const char *section, const char *name, const char *value)
+{
+	configStore()[configKey(section, name)] = value ? value : "";
+}
+
+extern "C" int config_save(config_t *)
+{
+	std::ofstream f(configPath());
+	for (auto &kv : configStore()) {
+		f << kv.first << "=" << kv.second << "\n";
+	}
+	return 0;
+}
