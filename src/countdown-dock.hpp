@@ -30,6 +30,12 @@ class CountdownDock : public QWidget {
 public:
 	explicit CountdownDock(QWidget *parent = nullptr);
 
+protected:
+	/* Pause the countdown loop while the dock is hidden (unchecked in the
+	 * Docks menu) and resume it when shown again. */
+	void showEvent(QShowEvent *event) override;
+	void hideEvent(QHideEvent *event) override;
+
 private slots:
 	void addHour(int delta);
 	void addMinute(int delta);

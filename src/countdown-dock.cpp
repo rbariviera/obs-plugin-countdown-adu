@@ -27,7 +27,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QFont>
 #include <QFontDatabase>
 #include <QFrame>
+#include <QHideEvent>
 #include <QIcon>
+#include <QShowEvent>
 #include <QGraphicsDropShadowEffect>
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -132,7 +134,11 @@ CountdownDock::CountdownDock(QWidget *parent) : QWidget(parent)
 	countdownTimer = new QTimer(this);
 	countdownTimer->setInterval(1000);
 	connect(countdownTimer, &QTimer::timeout, this, &CountdownDock::tickCountdown);
-	startCountdown();
+
+	/* Don't start the countdown here: at startup OBS restores the dock's saved
+	 * visibility AFTER construction, so starting now would keep the loop
+	 * running even when the dock is restored hidden. showEvent() starts it when
+	 * the dock actually becomes visible. */
 }
 
 void CountdownDock::applyStartupSchedule()
@@ -391,6 +397,25 @@ void CountdownDock::openSettings()
 {
 	CountdownSettingsDialog dialog(this);
 	dialog.exec();
+}
+
+void CountdownDock::showEvent(QShowEvent *event)
+{
+	QWidget::showEvent(event);
+
+	/* Dock became visible again: re-evaluate and resume ticking if needed. */
+	startCountdown();
+}
+
+void CountdownDock::hideEvent(QHideEvent *event)
+{
+	QWidget::hideEvent(event);
+
+	/* Dock hidden (unchecked in the Docks menu): stop the loop so we don't
+	 * keep updating the text sources in the background. */
+	if (countdownTimer) {
+		countdownTimer->stop();
+	}
 }
 
 int CountdownDock::remainingSeconds() const
